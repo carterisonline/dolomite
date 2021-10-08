@@ -1,0 +1,10 @@
+[package]
+authors = ["Carter Reeb <reebcw@pm.me>"]
+edition = "2018"
+name = "dolomite-core"
+version = "0.1.0"
+
+[dependencies]
+anyhow = "1"
+nom = "7"
+nom_locate = "4"

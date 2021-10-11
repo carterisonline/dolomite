@@ -1,5 +1,3 @@
-use std::fmt;
-
 use nom::branch::alt;
 use nom::bytes::complete::tag;
 use nom::character::complete::{space0, space1};
@@ -8,8 +6,8 @@ use nom::error::ErrorKind;
 use nom::sequence::{delimited, pair, tuple};
 use nom::IResult;
 
-use crate::parser::util::line_feed_whitespace;
-use crate::parser::{rest_of_file, singleton};
+use crate::parser::singleton;
+use crate::parser::util::{line_feed_whitespace, rest_of_file};
 
 use super::{ident, token, Token};
 
@@ -25,41 +23,36 @@ pub enum Op {
     Lte(Box<Token>, Box<Token>),
 }
 
-impl fmt::Display for Op {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match &self {
-            &Op::Add(t1, t2) => {
-                write!(f, "({t1} + {t2})")
-            }
+macro_rules! interop {
+    ($f: ident ($c: literal) -> $op: ident) => {
+        fn $f(i: &str) -> IResult<&str, Token> {
+            let parsed = nom::sequence::tuple((
+                //nom::bytes::complete::take_till(|c: char| c.is_whitespace() || c == $c),
+                crate::parser::singleton,
+                nom::character::complete::space0,
+                nom::bytes::complete::tag($c),
+                nom::character::complete::space0,
+                //nom::bytes::complete::take_till(|c: char| c.is_whitespace() || c == $c),
+                crate::parser::singleton,
+            ))(i);
 
-            &Op::Subtract(t1, t2) => {
-                write!(f, "({t1} - {t2})")
-            }
-
-            &Op::Eq(t1, t2) => {
-                write!(f, "({t1} == {t2})")
-            }
-
-            &Op::Neq(t1, t2) => {
-                write!(f, "({t1} != {t2})")
-            }
-            &Op::Gt(t1, t2) => {
-                write!(f, "({t1} > {t2})")
-            }
-            &Op::Lt(t1, t2) => {
-                write!(f, "({t1} < {t2})")
-            }
-            &Op::Gte(t1, t2) => {
-                write!(f, "({t1} >= {t2})")
-            }
-            &Op::Lte(t1, t2) => {
-                write!(f, "({t1} <= {t2})")
+            if let Ok(p) = parsed {
+                return Ok((
+                    p.0,
+                    crate::parser::Token::Op(crate::parser::ops::Op::$op(
+                        //box crate::parser::singleton(&p.1 .0).unwrap().1,
+                        box p.1 .0, //box crate::parser::singleton(&p.1 .4).unwrap().1,
+                        box p.1 .4,
+                    )),
+                ));
+            } else {
+                return Err(parsed.err().unwrap());
             }
         }
-    }
+    };
 }
 
-pub fn method(i: &str) -> IResult<&str, Token> {
+pub(super) fn method(i: &str) -> IResult<&str, Token> {
     let parsed = tuple((singleton, space0, tag(";"), space0, token))(i);
 
     if let Ok(p) = parsed {
@@ -69,40 +62,7 @@ pub fn method(i: &str) -> IResult<&str, Token> {
     }
 }
 
-pub fn bracket_group(i: &str) -> IResult<&str, Token> {
-    let mut level = 1;
-
-    if i.chars().nth(0) != Some('{') {
-        return Err(nom::Err::Error(nom::error::Error::new(i, ErrorKind::Fail)));
-    }
-    for (u, c) in i.chars().enumerate() {
-        if u == 0 {
-            continue;
-        }
-
-        match c {
-            '{' => level += 1,
-            '}' => {
-                if level == 1 {
-                    match delimited(line_feed_whitespace, token, line_feed_whitespace)(&i[1..u]) {
-                        Ok((_, t)) => {
-                            return Ok((&i[(u + 1)..i.len()], t));
-                        }
-
-                        Err(e) => return Err(e),
-                    }
-                } else {
-                    level -= 1;
-                }
-            }
-            _ => (),
-        }
-    }
-
-    return Err(nom::Err::Error(nom::error::Error::new(i, ErrorKind::Fail)));
-}
-
-pub fn ifstmt(i: &str) -> IResult<&str, Token> {
+pub(super) fn ifstmt(i: &str) -> IResult<&str, Token> {
     let parsed = tuple((
         tag("if"),
         space0,
@@ -127,7 +87,7 @@ pub fn ifstmt(i: &str) -> IResult<&str, Token> {
     }
 }
 
-pub fn assignment(i: &str) -> IResult<&str, Token> {
+pub(super) fn assignment(i: &str) -> IResult<&str, Token> {
     let parsed = tuple((
         opt(pair(tag("mut"), space1)),
         ident,
@@ -173,64 +133,52 @@ pub fn assignment(i: &str) -> IResult<&str, Token> {
     }
 }
 
-macro_rules! interop {
-    ($i: expr, $c: expr, $op: ident) => {{
-        let parsed = nom::sequence::tuple((
-            //nom::bytes::complete::take_till(|c: char| c.is_whitespace() || c == $c),
-            crate::parser::singleton,
-            nom::character::complete::space0,
-            nom::bytes::complete::tag($c),
-            nom::character::complete::space0,
-            //nom::bytes::complete::take_till(|c: char| c.is_whitespace() || c == $c),
-            crate::parser::singleton,
-        ))($i);
+fn bracket_group(i: &str) -> IResult<&str, Token> {
+    let mut level = 1;
 
-        if let Ok(p) = parsed {
-            return Ok((
-                p.0,
-                crate::parser::Token::Op(crate::parser::ops::Op::$op(
-                    //box crate::parser::singleton(&p.1 .0).unwrap().1,
-                    box p.1 .0, //box crate::parser::singleton(&p.1 .4).unwrap().1,
-                    box p.1 .4,
-                )),
-            ));
-        } else {
-            return Err(parsed.err().unwrap());
+    if i.chars().nth(0) != Some('{') {
+        return Err(nom::Err::Error(nom::error::Error::new(i, ErrorKind::Fail)));
+    }
+    for (u, c) in i.chars().enumerate() {
+        if u == 0 {
+            continue;
         }
-    }};
+
+        match c {
+            '{' => level += 1,
+            '}' => {
+                if level == 1 {
+                    match delimited(line_feed_whitespace, token, line_feed_whitespace)(&i[1..u]) {
+                        Ok((_, t)) => {
+                            return Ok((&i[(u + 1)..i.len()], t));
+                        }
+
+                        Err(e) => return Err(e),
+                    }
+                } else {
+                    level -= 1;
+                }
+            }
+            _ => (),
+        }
+    }
+
+    return Err(nom::Err::Error(nom::error::Error::new(i, ErrorKind::Fail)));
 }
 
-pub fn addition(i: &str) -> IResult<&str, Token> {
-    interop!(i, "+", Add)
-}
-
-pub fn subtraction(i: &str) -> IResult<&str, Token> {
-    interop!(i, "-", Subtract)
-}
+interop!(eq("==") -> Eq);
+interop!(neq("!=") -> Neq);
+interop!(gt(">") -> Gt);
+interop!(lt("<") -> Lt);
+interop!(gte(">=") -> Gte);
+interop!(lte("<=") -> Lte);
 
 pub fn comparison(i: &str) -> IResult<&str, Token> {
     alt((eq, neq, gte, lte, gt, lt))(i)
 }
 
-pub fn eq(i: &str) -> IResult<&str, Token> {
-    interop!(i, "==", Eq)
-}
-
-pub fn neq(i: &str) -> IResult<&str, Token> {
-    interop!(i, "!=", Neq)
-}
-pub fn gt(i: &str) -> IResult<&str, Token> {
-    interop!(i, ">", Gt)
-}
-pub fn lt(i: &str) -> IResult<&str, Token> {
-    interop!(i, "<", Lt)
-}
-pub fn gte(i: &str) -> IResult<&str, Token> {
-    interop!(i, ">=", Gte)
-}
-pub fn lte(i: &str) -> IResult<&str, Token> {
-    interop!(i, "<=", Lte)
-}
+interop!(addition("+") -> Add);
+interop!(subtraction("-") -> Subtract);
 
 pub fn ops(i: &str) -> IResult<&str, Token> {
     alt((subtraction, addition, comparison))(i)

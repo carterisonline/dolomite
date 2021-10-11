@@ -1,30 +1,19 @@
-use std::fmt;
-
 use nom::branch::alt;
 use nom::bytes::complete::{tag, take_while};
 use nom::character::complete::char;
-use nom::character::is_digit;
 use nom::combinator::{map, opt};
 use nom::error::ErrorKind;
 use nom::number::complete::{double, float};
 use nom::sequence::{delimited, pair};
 use nom::IResult;
 
+use crate::parser::util::is_char_digit;
+
 #[derive(Debug, PartialEq)]
 pub enum VagueLiteral {
     Integer(String),
     Float(f64),
     String(String),
-}
-
-impl fmt::Display for VagueLiteral {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match &self {
-            &VagueLiteral::Float(i) => write!(f, "{i}vf"),
-            &VagueLiteral::Integer(i) => write!(f, "{i}v"),
-            &VagueLiteral::String(s) => write!(f, "{s}"),
-        }
-    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -41,23 +30,6 @@ pub enum StrictNumber {
     LargeFloat(f64),
 }
 
-impl fmt::Display for StrictNumber {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match &self {
-            &StrictNumber::Byte(i) => write!(f, "{i}b"),
-            &StrictNumber::ByteSigned(i) => write!(f, "{i}bi"),
-            &StrictNumber::Small(i) => write!(f, "{i}s"),
-            &StrictNumber::SmallSigned(i) => write!(f, "{i}si"),
-            &StrictNumber::Medium(i) => write!(f, "{i}m"),
-            &StrictNumber::MediumSigned(i) => write!(f, "{i}mi"),
-            &StrictNumber::MediumFloat(i) => write!(f, "{i}m"),
-            &StrictNumber::Large(i) => write!(f, "{i}l"),
-            &StrictNumber::LargeSigned(i) => write!(f, "{i}li"),
-            &StrictNumber::LargeFloat(i) => write!(f, "{i}l"),
-        }
-    }
-}
-
 #[derive(Debug, PartialEq)]
 pub enum Literal {
     Number(StrictNumber),
@@ -66,15 +38,24 @@ pub enum Literal {
     String(String),
 }
 
-impl fmt::Display for Literal {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match &self {
-            &Literal::Number(num) => write!(f, "{num}"),
-            &Literal::Vague(num) => write!(f, "{num}"),
-            &Literal::Bool(b) => write!(f, "{b}"),
-            &Literal::String(s) => write!(f, "{s}"),
-        }
-    }
+macro_rules! def_strict_int {
+    ($id: ident ($t: ident), $suffix: expr) => {
+        map(pair(int, tag($suffix)), |b| {
+            StrictNumber::$id(b.0.parse::<$t>().unwrap())
+        })
+    };
+}
+
+pub fn literal(i: &'a str) -> IResult<&'a str, Literal> {
+    alt((
+        map(string, |s| Literal::String(s.to_string())),
+        map(strict_int, |n| Literal::Number(n)),
+        map(int, |i| {
+            Literal::Vague(VagueLiteral::Integer(i.to_string()))
+        }),
+        map(strict_float, |n| Literal::Number(n)),
+        map(double, |d| Literal::Vague(VagueLiteral::Float(d))),
+    ))(i)
 }
 
 fn append_prefix<T: ToString, U: ToString>(
@@ -91,15 +72,7 @@ fn append_prefix<T: ToString, U: ToString>(
     }
 }
 
-pub fn is_char_digit(i: char) -> bool {
-    is_digit(i as u8)
-}
-
-fn numbers(i: &'a str) -> IResult<&'a str, &'a str> {
-    take_while(is_char_digit)(i)
-}
-
-pub fn int(i: &'a str) -> IResult<&'a str, String> {
+fn int(i: &'a str) -> IResult<&'a str, String> {
     if i.contains(".") || i.trim() == "" {
         Err(nom::Err::Error(nom::error::Error::new(i, ErrorKind::Fail)))
     } else {
@@ -107,55 +80,31 @@ pub fn int(i: &'a str) -> IResult<&'a str, String> {
     }
 }
 
-pub fn strict_int(i: &'a str) -> IResult<&'a str, StrictNumber> {
-    alt((
-        map(pair(int, tag("bi")), |b| {
-            StrictNumber::ByteSigned(b.0.parse::<i8>().unwrap())
-        }),
-        map(pair(int, tag("b")), |b| {
-            StrictNumber::Byte(b.0.parse::<u8>().unwrap())
-        }),
-        map(pair(int, tag("si")), |b| {
-            StrictNumber::SmallSigned(b.0.parse::<i16>().unwrap())
-        }),
-        map(pair(int, tag("s")), |b| {
-            StrictNumber::Small(b.0.parse::<u16>().unwrap())
-        }),
-        map(pair(int, tag("mi")), |b| {
-            StrictNumber::MediumSigned(b.0.parse::<i32>().unwrap())
-        }),
-        map(pair(int, tag("m")), |b| {
-            StrictNumber::Medium(b.0.parse::<u32>().unwrap())
-        }),
-        map(pair(int, tag("li")), |b| {
-            StrictNumber::LargeSigned(b.0.parse::<i64>().unwrap())
-        }),
-        map(pair(int, tag("l")), |b| {
-            StrictNumber::Large(b.0.parse::<u64>().unwrap())
-        }),
-    ))(i)
+fn numbers(i: &'a str) -> IResult<&'a str, &'a str> {
+    take_while(is_char_digit)(i)
 }
 
-pub fn strict_float(i: &'a str) -> IResult<&'a str, StrictNumber> {
+fn strict_float(i: &'a str) -> IResult<&'a str, StrictNumber> {
     alt((
         map(pair(float, tag("m")), |b| StrictNumber::MediumFloat(b.0)),
         map(pair(double, tag("l")), |b| StrictNumber::LargeFloat(b.0)),
     ))(i)
 }
 
-pub fn string(i: &'a str) -> IResult<&'a str, &'a str> {
-    let out = delimited(char('"'), take_while(|s| s != '"'), char('"'))(i);
-    return out;
+fn strict_int(i: &'a str) -> IResult<&'a str, StrictNumber> {
+    alt((
+        def_strict_int!(ByteSigned(i8), "bi"),
+        def_strict_int!(Byte(u8), "b"),
+        def_strict_int!(SmallSigned(i16), "si"),
+        def_strict_int!(Small(u16), "s"),
+        def_strict_int!(MediumSigned(i32), "mi"),
+        def_strict_int!(Medium(u32), "m"),
+        def_strict_int!(LargeSigned(i64), "li"),
+        def_strict_int!(Large(u64), "l"),
+    ))(i)
 }
 
-pub fn literal(i: &'a str) -> IResult<&'a str, Literal> {
-    alt((
-        map(string, |s| Literal::String(s.to_string())),
-        map(strict_int, |n| Literal::Number(n)),
-        map(int, |i| {
-            Literal::Vague(VagueLiteral::Integer(i.to_string()))
-        }),
-        map(strict_float, |n| Literal::Number(n)),
-        map(double, |d| Literal::Vague(VagueLiteral::Float(d))),
-    ))(i)
+fn string(i: &'a str) -> IResult<&'a str, &'a str> {
+    let out = delimited(char('"'), take_while(|s| s != '"'), char('"'))(i);
+    return out;
 }

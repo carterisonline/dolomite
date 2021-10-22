@@ -3,7 +3,7 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
 use crate::parser::literals::{Literal, StrictNumber, VagueLiteral};
 use crate::parser::ops::Op;
-use crate::parser::Token;
+use crate::parser::{Token, TonsOfTokens};
 
 static INDENT: AtomicUsize = AtomicUsize::new(0);
 static DO_INDENT: AtomicBool = AtomicBool::new(false);
@@ -77,6 +77,20 @@ impl fmt::Display for Literal {
             &Literal::Bool(b) => write!(f, "{b}"),
             &Literal::String(s) => write!(f, "{s}"),
         }
+    }
+}
+
+impl fmt::Display for TonsOfTokens {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            self.0
+                .iter()
+                .map(|t| t.to_string())
+                .collect::<Vec<String>>()
+                .join(", ")
+        )
     }
 }
 

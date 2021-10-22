@@ -1,0 +1,61 @@
+group direction = [
+	North, East, South, West
+]
+
+alias direction/*
+
+direction turn_left = |direction currentdir| {
+	return match currentdir {
+		North: West
+		East:  North
+		South: East
+		West:  South
+	}
+}
+
+direction turn_right = |direction currentdir| {
+	return match currentdir {
+		North: East
+		East:  South
+		South: West
+		West:  North
+	}
+}
+
+[medium, medium] move = |medium x, medium y, direction dir| {
+	return match dir {
+		North: [x, y + 1]
+		East:  [x + 1, y]
+		South: [x, y - 1]
+		West:  [x - 1, y]
+	}
+}
+
+print_bool = |boolean lit| {
+	if lit {
+		print "#"
+	} else {
+		print " "
+	}
+}
+
+width = 32
+height = 16
+byte main = || {
+	mut array[array[boolean]] field = 0..height; iter; eachwillbecome (0..width; iter; eachwillbecome false)
+	do_ant_step = |medium x, medium y, mut direction dir| {
+		lit = field[y][x]
+		field[y][x] = !lit
+		if lit {
+			dir = dir; turn_right
+		} else {
+			dir = dir; turn_left
+		}
+
+		field; iter; eachwill (iter; print_bool); eachwill print "\n"
+
+		[x, y, dir]; move; do_ant_step
+	}
+
+	do_ant_step [width / 2, height / 2, North]
+}

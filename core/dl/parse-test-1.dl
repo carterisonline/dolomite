@@ -3,7 +3,7 @@ mut output = 0
 byte dice = (1b - 1b); randomize; normalize
 
 if dice >= 127 {
-    output = 1
+	output = 1
 }
 
 output; print

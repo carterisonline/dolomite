@@ -3,11 +3,12 @@ use nom::bytes::complete::tag;
 use nom::character::complete::{space0, space1};
 use nom::combinator::opt;
 use nom::error::ErrorKind;
+use nom::multi::separated_list0;
 use nom::sequence::{delimited, pair, tuple};
 use nom::IResult;
 
-use crate::parser::singleton;
 use crate::parser::util::{line_feed_whitespace, rest_of_file};
+use crate::parser::{param, singleton, TonsOfTokens};
 
 use super::{ident, token, Token};
 
@@ -50,6 +51,29 @@ macro_rules! interop {
             }
         }
     };
+}
+
+pub(super) fn method_def(i: &str) -> IResult<&str, Token> {
+    let parsed = tuple((
+        delimited(
+            pair(tag("|"), space0),
+            separated_list0(tuple((space0, tag(","), space0)), param),
+            pair(space0, tag("|")),
+        ),
+        space0,
+        bracket_group,
+        line_feed_whitespace,
+        rest_of_file,
+    ))(i);
+
+    if let Ok(p) = parsed {
+        return Ok((
+            p.0,
+            Token::FnPair(TonsOfTokens(p.1 .0), box p.1 .2, box p.1 .4),
+        ));
+    } else {
+        return Err(parsed.err().unwrap());
+    }
 }
 
 pub(super) fn method(i: &str) -> IResult<&str, Token> {

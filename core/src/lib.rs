@@ -70,4 +70,20 @@ mod tests {
             )
         );
     }
+
+    #[test]
+    fn parse_test_2() {
+        let src = std::fs::read_to_string("dl/parse-test-2.dl").unwrap();
+        let parsed = parse(&src);
+        println!("(tests::parse_test_2)\nParsed Tokens:\n");
+        println!("{parsed}");
+    }
+
+    #[test]
+    fn langtons_ant() {
+        let src = std::fs::read_to_string("dl/langtons-ant.dl").unwrap();
+        let parsed = parse(&src);
+        println!("(tests::langtons_ant)\nParsed Tokens:\n");
+        println!("{parsed}");
+    }
 }

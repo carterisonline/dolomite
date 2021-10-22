@@ -1,2 +1,8 @@
+# Rust
 **/Cargo.lock
 **/target
+
+# Code Extension
+yarn.lock
+node_modules
+*.vsix

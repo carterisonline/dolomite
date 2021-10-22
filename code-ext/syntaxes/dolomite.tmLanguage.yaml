@@ -1,0 +1,92 @@
+$schema: 'https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json'
+name: Dolomite
+
+patterns:
+  - include: '#keywords'
+  - include: '#comments'
+  - include: '#string'
+  - include: '#variable'
+  - include: '#constant'
+  - include: '#punctuation'
+  - include: '#entity'
+
+repository:
+  punctuation:
+    patterns:
+      - name: punctuation.terminator.dolomite
+        match: ':|,'
+      - name: punctuation.brackets.curly.dolomite
+        match: '\{|\}'
+
+  string:
+    patterns:
+      - include: '#string-double'
+
+  string-double:
+    name: string.quoted.double.dolomite
+    begin: '"'
+    beginCaptures:
+      0:
+        name: punctuation.definition.string.begin.dolomite
+    end: (")|((?:[\\\n])$)
+    endCaptures:
+      1:
+        name: punctuation.definition.string.end.dolomite
+      2:
+        name: invalid.illegal.newline.dolomite
+    patterns:
+      - include: '#string-character-escape'
+
+  # definitely not stolen from JS
+  string-character-escape:
+    name: constant.character.escape.dolomite
+    match: \\(x[0-9A-Fa-f]{2}|u[0-9A-Fa-f]{4}|u\{[0-9A-Fa-f]+\}|[0-2][0-7]{0,2}|3[0-6][0-7]?|37[0-7]?|[4-7][0-7]?|.|$)
+
+
+  keywords:
+    patterns:
+      - name: keyword.control.dolomite
+        match: >-
+          \b(if|else|match|return|loop)\b
+      - name: keyword.operator.relational.dolomite
+        match: >-
+          <=|>=|<|>
+      - name: keyword.operator.comparison.dolomite
+        match: >-
+          ==|!=
+      - name: keyword.operator.assignment.dolomite
+        match: =
+      - name: keyword.operator.math.dolomite
+        match: '(\+|\-|(\*(?= )|\*(?=\d))|/(?= )|/(?=\d))'
+      - name: keyword.other.dolomite
+        match: \b(mut|alias)\b
+      - name: keyword.operator.range.dolomite
+        match: '\.\.'
+      - name: keyword.control.pipe.dolomite
+        match: ';'
+
+  comments:
+    patterns:
+      - name: comment.line.dolomite
+        begin: '//'
+        end: |+
+
+  constant:
+    patterns:
+      - name: constant.numeric.dolomite
+        match: '\b\-?\d+(\.\d+)?(s|m|l|si|mi|li)?'
+
+  entity:
+    patterns:
+      - name: entity.name.type.primitive.dolomite
+        match: '\b(byte|small|medium|large|bytesigned|smallsigned|mediumsigned|largesigned|mediumfloat|largefloat|boolean|array|string|group)\b'
+      - name: entity.name.type.dolomite
+        # what have i done
+        match: '\w++(?=[^ ]++ [^=]++=)|\w++(?= \w++ = \|++)|\w++(?= \w++ = \[)|\w(?= \w(?= ) =>?+)'
+
+      - name: entity.name.function.dolomite
+        match: '\w++(?= = \|)'
+      - name: support.function.name
+        match: '\b(print|eachwill|iter|eachwillbecome)\b'
+
+scopeName: source.dolomite

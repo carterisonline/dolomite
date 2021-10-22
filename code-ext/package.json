@@ -1,0 +1,42 @@
+{
+    "name": "dolomite-language-support",
+    "displayName": "Dolomite Language Support",
+    "description": "",
+    "publisher": "carterisonline",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/carterisonline/dolomite/tree/trunk/code-ext"
+    },
+    "version": "0.1.0",
+    "engines": {
+        "vscode": "^1.32.0"
+    },
+    "categories": [
+        "Programming Languages"
+    ],
+    "icon": "icons/dolomite_shadow2.png",
+    "contributes": {
+        "languages": [
+            {
+                "id": "dolomite",
+                "aliases": [
+                    "Dolomite"
+                ],
+                "extensions": [
+                    ".dl"
+                ],
+                "configuration": "./language-configuration.json"
+            }
+        ],
+        "grammars": [
+            {
+                "language": "dolomite",
+                "scopeName": "source.dolomite",
+                "path": "./syntaxes/dolomite.tmLanguage.json"
+            }
+        ]
+    },
+    "devDependencies": {
+        "js-yaml": "^4.1.0"
+    }
+}

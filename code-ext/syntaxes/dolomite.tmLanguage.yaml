@@ -47,7 +47,7 @@ repository:
     patterns:
       - name: keyword.control.dolomite
         match: >-
-          \b(if|else|match|return|loop)\b
+          \b(if|else|match|return|loop|break)\b
       - name: keyword.operator.relational.dolomite
         match: >-
           <=|>=|<|>

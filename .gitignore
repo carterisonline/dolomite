@@ -6,3 +6,11 @@
 yarn.lock
 node_modules
 *.vsix
+.lsp/.cache
+
+# Used for regex testing
+bunchadata.dl
+
+# Compilation
+*.o
+*.v

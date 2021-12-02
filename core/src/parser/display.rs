@@ -8,7 +8,7 @@ use crate::parser::{Token, TonsOfTokens};
 static INDENT: AtomicUsize = AtomicUsize::new(0);
 static DO_INDENT: AtomicBool = AtomicBool::new(false);
 
-impl fmt::Display for VagueLiteral {
+impl fmt::Display for VagueLiteral<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &self {
             &VagueLiteral::Float(i) => write!(f, "{i}vf"),
@@ -35,7 +35,7 @@ impl fmt::Display for StrictNumber {
     }
 }
 
-impl fmt::Display for Op {
+impl fmt::Display for Op<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &self {
             &Op::Add(t1, t2) => {
@@ -69,7 +69,7 @@ impl fmt::Display for Op {
     }
 }
 
-impl fmt::Display for Literal {
+impl fmt::Display for Literal<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &self {
             &Literal::Number(num) => write!(f, "{num}"),
@@ -80,7 +80,7 @@ impl fmt::Display for Literal {
     }
 }
 
-impl fmt::Display for TonsOfTokens {
+impl fmt::Display for TonsOfTokens<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
@@ -94,7 +94,7 @@ impl fmt::Display for TonsOfTokens {
     }
 }
 
-impl fmt::Display for Token {
+impl fmt::Display for Token<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut out = Vec::new();
         let indent = INDENT.load(Ordering::Relaxed);
@@ -194,6 +194,29 @@ impl fmt::Display for Token {
                 out.push(format!("<{operator} THEN \n"));
                 DO_INDENT.store(true, Ordering::Relaxed);
                 out.push(format!("{method}>"));
+            }
+
+            &Token::Span(span, t) => out.push(format!(
+                "{t} @ {{{}, {}}}",
+                span.get_column(),
+                span.get_line_beginning()[0]
+            )),
+
+            &Token::Array(objects) => {
+                DO_INDENT.store(false, Ordering::Relaxed);
+                out.push(format!(
+                    "[{}]",
+                    objects
+                        .iter()
+                        .map(|s| format!("{s}"))
+                        .collect::<Vec<String>>()
+                        .join(", ")
+                ));
+            }
+
+            &Token::MethodUnit(method, args) => {
+                DO_INDENT.store(false, Ordering::Relaxed);
+                out.push(format!("λ {method}({args})"));
             }
 
             &Token::None => (),

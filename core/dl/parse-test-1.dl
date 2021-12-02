@@ -1,9 +1,5 @@
-mut output = 0
-
-byte dice = (1b - 1b); randomize; normalize
-
-if dice >= 127 {
-	output = 1
+printplusone = |medium x| {
+	print x + 1
 }
 
-output; print
+printplusone 1

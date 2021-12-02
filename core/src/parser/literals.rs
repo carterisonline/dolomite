@@ -1,22 +1,22 @@
 use nom::branch::alt;
-use nom::bytes::complete::{tag, take_while};
+use nom::bytes::complete::{tag, take_while, take_while1};
 use nom::character::complete::char;
 use nom::combinator::{map, opt};
 use nom::error::ErrorKind;
 use nom::number::complete::{double, float};
-use nom::sequence::{delimited, pair};
+use nom::sequence::{delimited, pair, preceded};
 use nom::IResult;
 
-use crate::parser::util::is_char_digit;
+use crate::parser::util::StrSpan;
 
-#[derive(Debug, PartialEq)]
-pub enum VagueLiteral {
-    Integer(String),
+#[derive(Debug, PartialEq, Clone)]
+pub enum VagueLiteral<'a> {
+    Integer(StrSpan<'a>),
     Float(f64),
-    String(String),
+    String(StrSpan<'a>),
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum StrictNumber {
     Byte(u8),
     ByteSigned(i8),
@@ -30,12 +30,12 @@ pub enum StrictNumber {
     LargeFloat(f64),
 }
 
-#[derive(Debug, PartialEq)]
-pub enum Literal {
+#[derive(Debug, PartialEq, Clone)]
+pub enum Literal<'a> {
     Number(StrictNumber),
-    Vague(VagueLiteral),
+    Vague(VagueLiteral<'a>),
     Bool(bool),
-    String(String),
+    String(StrSpan<'a>),
 }
 
 macro_rules! def_strict_int {
@@ -46,52 +46,38 @@ macro_rules! def_strict_int {
     };
 }
 
-pub fn literal(i: &'a str) -> IResult<&'a str, Literal> {
+pub fn literal(i: StrSpan) -> IResult<StrSpan, Literal> {
     alt((
-        map(string, |s| Literal::String(s.to_string())),
+        map(string, |s| Literal::String(s)),
         map(strict_int, |n| Literal::Number(n)),
-        map(int, |i| {
-            Literal::Vague(VagueLiteral::Integer(i.to_string()))
-        }),
+        map(int, |i| Literal::Vague(VagueLiteral::Integer(i))),
         map(strict_float, |n| Literal::Number(n)),
         map(double, |d| Literal::Vague(VagueLiteral::Float(d))),
     ))(i)
 }
 
-fn append_prefix<T: ToString, U: ToString>(
-    i: IResult<&'a str, (Option<T>, U)>,
-) -> IResult<&'a str, String> {
-    if let Ok(res) = i {
-        if let Some(c) = res.1 .0 {
-            return Ok((res.0, format!("{}{}", c.to_string(), res.1 .1.to_string())));
-        } else {
-            return Ok((res.0, res.1 .1.to_string()));
-        }
-    } else {
-        return Err(i.err().unwrap());
-    }
-}
-
-fn int(i: &'a str) -> IResult<&'a str, String> {
+fn int(i: StrSpan) -> IResult<StrSpan, StrSpan> {
     if i.contains(".") || i.trim() == "" {
         Err(nom::Err::Error(nom::error::Error::new(i, ErrorKind::Fail)))
+    } else if i.starts_with("-") {
+        preceded(opt(tag("-")), numbers)(i)
     } else {
-        append_prefix(pair(opt(char('-')), numbers)(i))
+        numbers(i)
     }
 }
 
-fn numbers(i: &'a str) -> IResult<&'a str, &'a str> {
-    take_while(is_char_digit)(i)
+fn numbers(i: StrSpan) -> IResult<StrSpan, StrSpan> {
+    take_while1(|c: char| c.is_digit(10))(i)
 }
 
-fn strict_float(i: &'a str) -> IResult<&'a str, StrictNumber> {
+fn strict_float(i: StrSpan) -> IResult<StrSpan, StrictNumber> {
     alt((
         map(pair(float, tag("m")), |b| StrictNumber::MediumFloat(b.0)),
         map(pair(double, tag("l")), |b| StrictNumber::LargeFloat(b.0)),
     ))(i)
 }
 
-fn strict_int(i: &'a str) -> IResult<&'a str, StrictNumber> {
+fn strict_int(i: StrSpan) -> IResult<StrSpan, StrictNumber> {
     alt((
         def_strict_int!(ByteSigned(i8), "bi"),
         def_strict_int!(Byte(u8), "b"),
@@ -104,7 +90,8 @@ fn strict_int(i: &'a str) -> IResult<&'a str, StrictNumber> {
     ))(i)
 }
 
-fn string(i: &'a str) -> IResult<&'a str, &'a str> {
+//TODO: implement escaping
+fn string(i: StrSpan) -> IResult<StrSpan, StrSpan> {
     let out = delimited(char('"'), take_while(|s| s != '"'), char('"'))(i);
     return out;
 }

@@ -1,7 +1,4 @@
-medium add = |medium num1, medium num2| {
-	num1 + num2
-}
-
-byte main = || {
-
+byte main = |byte i, small b| {
+    say "hi"
+    say [see, you, soon]
 }

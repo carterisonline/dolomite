@@ -1,0 +1,10 @@
+[package]
+authors = ["Carter Reeb <reebcw@pm.me>"]
+edition = "2021"
+name = "dolomite-logger"
+version = "0.1.0"
+
+[dependencies]
+log = "0.4"
+env_logger = "0.9"
+chrono = "0.4"

@@ -1,89 +1,72 @@
+//TODO: Follow DRY principles (the code sucks)
+
 #![feature(box_syntax)]
+#![feature(box_patterns)]
 #![feature(in_band_lifetimes)]
 #![feature(format_args_capture)]
 
+pub mod compiler;
 pub mod parser;
+
+#[macro_export]
+macro_rules! attempt {
+    ($part: literal from $src: expr) => {
+        if log::log_enabled!(log::Level::Info) {
+            if (&$src).trim().len() > 0 {
+                log::info!("ATTEMPT {} from {}", $part, &$src);
+            }
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! got {
+    ($part: literal from $src: expr) => {
+        if log::log_enabled!(log::Level::Info) {
+            if (&$src).trim().len() > 0 {
+                log::info!("GOT {} from {}", $part, &$src);
+            }
+        }
+    };
+}
 
 #[cfg(test)]
 mod tests {
-    use crate::parser::literals::{Literal, StrictNumber, VagueLiteral};
-    use crate::parser::ops::Op;
-    use crate::parser::{parse, Token};
+    use crate::compiler::Program;
+    use crate::parser::parse;
 
     #[test]
     fn parse_test_1() {
+        dolomite_logger::init();
         let src = std::fs::read_to_string("dl/parse-test-1.dl").unwrap();
         let parsed = parse(&src);
-        println!("(tests::parse_test_1)\nParsed Tokens:\n");
-        println!("{parsed}");
-        assert_eq!(
-            parsed,
-            Token::Pair(
-                box Token::Assignment {
-                    mutable: true,
-                    type_annotation: None,
-                    ident: box Token::Ident("output".into()),
-                    value: box Token::Literal(Literal::Vague(VagueLiteral::Integer("0".into())))
-                },
-                box Token::Pair(
-                    box Token::Assignment {
-                        mutable: false,
-                        type_annotation: Some(box Token::Ident("byte".into())),
-                        ident: box Token::Ident("dice".into()),
-                        value: box Token::Method(
-                            box Token::Op(Op::Subtract(
-                                box Token::Literal(Literal::Number(StrictNumber::Byte(1))),
-                                box Token::Literal(Literal::Number(StrictNumber::Byte(1)))
-                            )),
-                            box Token::Method(
-                                box Token::Ident("randomize".into()),
-                                box Token::Ident("normalize".into())
-                            )
-                        )
-                    },
-                    box Token::CondPair(
-                        box Token::IfStmt {
-                            cond: box Token::Op(Op::Gte(
-                                box Token::Ident("dice".into()),
-                                box Token::Literal(Literal::Vague(VagueLiteral::Integer(
-                                    "127".into()
-                                )))
-                            ))
-                        },
-                        box Token::Pair(
-                            box Token::Assignment {
-                                mutable: false,
-                                type_annotation: None,
-                                ident: box Token::Ident("output".into()),
-                                value: box Token::Literal(Literal::Vague(VagueLiteral::Integer(
-                                    "1".into()
-                                )))
-                            },
-                            box Token::None
-                        ),
-                        box Token::Method(
-                            box Token::Ident("output".into()),
-                            box Token::Ident("print".into())
-                        )
-                    )
-                )
-            )
-        );
+
+        let mut compiler = Program::new("parse_test_1").unwrap();
+        compiler.compile(parsed).unwrap();
     }
 
+    /*
     #[test]
     fn parse_test_2() {
+        env_logger::init();
         let src = std::fs::read_to_string("dl/parse-test-2.dl").unwrap();
         let parsed = parse(&src);
         println!("(tests::parse_test_2)\nParsed Tokens:\n");
-        println!("{parsed}");
-    }
+        println!("{:?}", parsed);
+        match parsed {
+            Token::Pair(p1, _) => {
+                println!("{p1}");
+                println!("{}", translate_file(p1).unwrap());
+            }
+            _ => unimplemented!(),
+        }
+    }*/
 
-    #[test]
+    /*#[test]
     fn langtons_ant() {
         let src = std::fs::read_to_string("dl/langtons-ant.dl").unwrap();
         let parsed = parse(&src);
         println!("(tests::langtons_ant)\nParsed Tokens:\n");
         println!("{parsed}");
-    }
+    }*/
 }

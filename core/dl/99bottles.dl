@@ -1,0 +1,12 @@
+string format_to_verse = |medium n| {
+	return match n {
+		0: "no more bottles of beer on the wall. no more bottles of beer. go to the store and buy some more. go get some bottles of beer for the wall."
+		1: "one bottle of beer on the wall.\none bottle of beer on the wall\none bottle of beer\ntake one down, pass it around"
+		i: i + "bottles of beer on the wall\n" + i + "bottles of beer on the wall\n" + i + " bottles of beer\ntake one down, pass it around"
+	}
+}
+
+byte main = || {
+	99..0; iter; eachwill format_to_verse; eachwill print
+	return 0
+}
